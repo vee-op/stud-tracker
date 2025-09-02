@@ -35,7 +35,7 @@ jobs:
 
   deploy:
     name: Deploy to Ec2
-    needs: build
+    #needs: build
     runs-on: ubuntu-latest
 
     env:
