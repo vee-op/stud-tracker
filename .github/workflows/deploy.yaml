@@ -1,0 +1,65 @@
+name: CI/CD Pipeline for Student-Tracker Deployment
+description: This pipeline deploys the Student Tracker application on EC2
+on: 
+  push: 
+    branches: 
+      - main
+  workflow_dispatch: # allows manual triggering of the workflow
+  
+jobs: 
+  build:
+    name: Build & Test Python App
+    runs-on: ubuntu-latest
+    steps: 
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup python
+        uses: actions/setup-python@v5
+        with: 
+          python-version: '3.10' 
+      
+      - name: Install dependencies in requirement.txt
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Run test
+        run: |
+          pytest # Run pytest
+
+  deploy:
+    name: Deploy to Ec2
+    needs: build
+    runs-on: ubuntu-latest
+
+    env:
+      EC2_HOST: ${{ secrets.EC2_HOST }}
+      EC2_USER: ${{ secrets.EC2_USER }}
+      SSH_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
+      APP_DIR: '/home/ubuntu/stud-tracker'
+      
+      VAULT_ADDR: ${{ secrets.VAULT_ADDR }}
+      VAULT_ROLE_ID: ${{ secrets.VAULT_ROLE_ID }}
+      VAULT_SECRET_ID: ${{ secrets.VAULT_SECRET_ID }}
+
+    steps: 
+      - name: Set-up SSH 
+        run: |
+          mkdir -p ~/.ssh
+          echo "$SSH_KEY" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          ssh-keyscan -H $(EC2_HOST) >> ~/.ssh/known_hosts
+      
+      - name: Deploy via SSH
+        run: |
+          ssh -i ~/.ssh/deploy_key ${EC2_USER}@${EC2_HOST} << EOF
+          export VAULT_ADDR=${{ secrets.VAULT_ADDR }}
+          export VAULT_ROLE_ID=${{ secrets.VAULT_ROLE_ID }}
+          export VAULT_SECRET_ID=${{ secrets.VAULT_SECRET_ID }}
+          cd ${APP_DIR} || exit 1
+          git pull origin main
+          source venv/bin/activate
+          pip install -r requirements.txt
+          nohup uvicorn app.main:app --host 0.0.0.0 --port 8000 &
+          EOF
