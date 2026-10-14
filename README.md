@@ -89,7 +89,5 @@ You can deploy the app on platforms like:
 - Elastic Beanstalk or more
 
 
-## 👩🏽‍💻 Built for the Cloud Native Series by Chisom
-This project is used for learning cloud-native tools and Handson-Project.
 
 Feel free to fork and extend it!
